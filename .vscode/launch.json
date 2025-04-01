@@ -11,7 +11,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "./cmd/ai-git/main.go",
-            "args": ["--config","/Users/ayilin/Project/ai-git/config.yaml","commit"]
+            "args": ["commit"]
         }
     ]
 }
