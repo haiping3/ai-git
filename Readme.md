@@ -28,3 +28,4 @@ export OPENAI_API_KEY="your_api_key_here"
 export AI_TYPE="openai"
 ```
 
+Git-related code is referenced from https://github.com/jatinsandilya/mcp-server-auto-commit. Thanks to jatinsandilya!
