@@ -13,12 +13,11 @@ import (
 
 func main() {
 	// Parse command line flags
-	configFile := flag.String("config", "", "Path to config file")
 	workDir := flag.String("dir", "", "Git repository directory")
 	flag.Parse()
 
 	// Load configuration
-	config, err := ai.LoadConfig(*configFile)
+	config, err := ai.LoadConfig()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
@@ -57,26 +56,17 @@ func handleCommit(config ai.Config, workDir string) {
 		log.Fatalf("Error generating commit message: %v", err)
 	}
 
-	fmt.Printf("\nGenerated commit message:\n%s\n", message)
+	addCmd := exec.Command("git", "add", "-A")
+	if err := addCmd.Run(); err != nil {
+		log.Fatalf("Error executing git add: %v", err)
+	}
+	// Execute git commit
+	commitCmd := exec.Command("git", "commit", "-m", message)
+	commitCmd.Dir = changes.WorkDir
+	commitCmd.Stdout = os.Stdout
+	commitCmd.Stderr = os.Stderr
 
-	// Ask user if they want to commit with this message
-	fmt.Print("\nDo you want to commit with this message? (y/n): ")
-	var response string
-	fmt.Scanln(&response)
-
-	if response == "y" || response == "Y" {
-		// Execute git commit
-		commitCmd := exec.Command("git", "commit", "-m", message)
-		commitCmd.Dir = changes.WorkDir
-		commitCmd.Stdout = os.Stdout
-		commitCmd.Stderr = os.Stderr
-
-		if err := commitCmd.Run(); err != nil {
-			log.Fatalf("Error executing git commit: %v", err)
-		}
-
-		fmt.Println("Changes committed successfully!")
-	} else {
-		fmt.Println("Commit cancelled")
+	if err := commitCmd.Run(); err != nil {
+		log.Fatalf("Error executing git commit: %v", err)
 	}
 }
