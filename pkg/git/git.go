@@ -20,6 +20,7 @@ type Changes struct {
 	Modified []string            `json:"modified"`
 	Added    []string            `json:"added"`
 	Deleted  []string            `json:"deleted"`
+	Unknown  []string            `json:"unknown"`
 	Details  map[string][]string `json:"details"`
 	WorkDir  string              `json:"workDir"`
 }
@@ -77,6 +78,7 @@ func GetChanges(workDir string) (*Changes, error) {
 		Modified: make([]string, 0),
 		Added:    make([]string, 0),
 		Deleted:  make([]string, 0),
+		Unknown:  make([]string, 0),
 		Details:  make(map[string][]string),
 		WorkDir:  workDir,
 	}
@@ -99,6 +101,9 @@ func GetChanges(workDir string) (*Changes, error) {
 		}
 		if strings.Contains(status, "D") {
 			changes.Deleted = append(changes.Deleted, file)
+		}
+		if strings.Contains(status, "??") {
+			changes.Unknown = append(changes.Unknown, file)
 		}
 	}
 
@@ -150,6 +155,14 @@ func FormatChangesForPrompt(changes *Changes) string {
 	if len(changes.Deleted) > 0 {
 		sb.WriteString("Deleted files:\n")
 		for _, file := range changes.Deleted {
+			sb.WriteString("- " + file + "\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(changes.Unknown) > 0 {
+		sb.WriteString("Unknown files:\n")
+		for _, file := range changes.Unknown {
 			sb.WriteString("- " + file + "\n")
 		}
 		sb.WriteString("\n")

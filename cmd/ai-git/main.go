@@ -27,7 +27,7 @@ func main() {
 	if len(args) > 0 && args[0] == "commit" {
 		handleCommit(*config, *workDir)
 	} else {
-		fmt.Println("Usage: ai-git [--config path] [--dir path] commit")
+		fmt.Println("Usage: ai-git [--dir path] commit")
 	}
 }
 
