@@ -39,7 +39,7 @@ func handleCommit(config ai.Config, workDir string) {
 	}
 
 	// No changes to commit
-	if len(changes.Modified) == 0 && len(changes.Added) == 0 && len(changes.Deleted) == 0 {
+	if len(changes.Modified) == 0 && len(changes.Added) == 0 && len(changes.Deleted) == 0 && len(changes.Unknown) == 0 {
 		fmt.Println("No changes to commit")
 		return
 	}
