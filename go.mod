@@ -1,4 +1,4 @@
-module github.com/ayilin/ai-git
+module github.com/Codexiaoyi/ai-git
 
 go 1.23.1
 

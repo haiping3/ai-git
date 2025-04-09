@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ayilin/ai-git/pkg/ai"
-	"github.com/ayilin/ai-git/pkg/git"
+	"github.com/Codexiaoyi/ai-git/pkg/ai"
+	"github.com/Codexiaoyi/ai-git/pkg/git"
 	"github.com/spf13/cobra"
 )
 
