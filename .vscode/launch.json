@@ -11,7 +11,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "./cmd/ai-git/main.go",
-            "args": ["commit"]
+            "args": ["commit","--m"]
         }
     ]
 }
