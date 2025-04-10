@@ -58,7 +58,7 @@ func handleCommit(config ai.Config, workDir string, byManual bool) {
 	formattedChanges := git.FormatChangesForPrompt(changes)
 
 	// Create prompt
-	prompt := fmt.Sprintf("Generate a concise git commit message based on these changes:\n\n%s, just give me the totally summary and shortly result, you can add emojis.", formattedChanges)
+	prompt := fmt.Sprintf("Generate a concise git commit message based on these changes:\n\n%s, just give me the shortly commit message, you can add emojis.", formattedChanges)
 
 	// Generate commit message using AI
 	message, err := ai.GenerateCommitMessage(prompt, config)

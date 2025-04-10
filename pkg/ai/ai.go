@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 // Message represents a chat message
@@ -68,22 +69,16 @@ type DeepSeekResponse struct {
 
 // QwenRequest represents the request structure for Qwen API
 type QwenRequest struct {
-	Model string `json:"model"`
-	Input struct {
-		Messages []Message `json:"messages"`
-	} `json:"input"`
-	Parameters struct {
-		Stream bool `json:"stream"`
-	} `json:"parameters"`
+	Model    string    `json:"model"`
+	Messages []Message `json:"messages"`
+	Stream   bool      `json:"stream"`
 }
 
 // QwenResponse represents the response structure from Qwen API
 type QwenResponse struct {
-	Output struct {
-		Choices []struct {
-			Message Message `json:"message"`
-		} `json:"choices"`
-	} `json:"output"`
+	Choices []struct {
+		Message Message `json:"message"`
+	} `json:"choices"`
 }
 
 // GenerateCommitMessage generates a commit message using the configured AI model
@@ -119,7 +114,7 @@ func generateWithOpenAI(prompt string, config OpenAIConfig) (string, error) {
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are a helpful assistant that generates concise and descriptive git commit messages based on the changes provided.",
+				Content: "You are a helpful assistant that generates concise and descriptive git commit message based on the changes provided. Please generate shortly.",
 			},
 			{
 				Role:    "user",
@@ -252,7 +247,7 @@ func generateWithAnthropic(prompt string, config AnthropicConfig) (string, error
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are a helpful assistant that generates concise and descriptive git commit messages based on the changes provided.",
+				Content: "You are a helpful assistant that generates concise and descriptive git commit message based on the changes provided. Please generate shortly.",
 			},
 			{
 				Role:    "user",
@@ -327,7 +322,7 @@ func generateWithDeepSeek(prompt string, config DeepSeekConfig) (string, error) 
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are a helpful assistant that generates concise and descriptive git commit messages based on the changes provided.",
+				Content: "You are a helpful assistant that generates concise and descriptive git commit message based on the changes provided. Please generate shortly.",
 			},
 			{
 				Role:    "user",
@@ -391,25 +386,17 @@ func generateWithQwen(prompt string, config QwenConfig) (string, error) {
 
 	reqBody := QwenRequest{
 		Model: config.Model,
-		Input: struct {
-			Messages []Message `json:"messages"`
-		}{
-			Messages: []Message{
-				{
-					Role:    "system",
-					Content: "You are a helpful assistant that generates concise and descriptive git commit messages based on the changes provided.",
-				},
-				{
-					Role:    "user",
-					Content: prompt,
-				},
+		Messages: []Message{
+			{
+				Role:    "system",
+				Content: "You are a helpful assistant that generates concise and descriptive git commit message based on the changes provided. Please generate shortly.",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
 			},
 		},
-		Parameters: struct {
-			Stream bool `json:"stream"`
-		}{
-			Stream: false,
-		},
+		Stream: false,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
@@ -442,9 +429,14 @@ func generateWithQwen(prompt string, config QwenConfig) (string, error) {
 		return "", err
 	}
 
-	if len(qwenResp.Output.Choices) == 0 {
+	if len(qwenResp.Choices) == 0 {
 		return "", fmt.Errorf("no response from Qwen")
 	}
 
-	return qwenResp.Output.Choices[0].Message.Content, nil
+	content := qwenResp.Choices[0].Message.Content
+	_, newContent, found := strings.Cut(content, "</think>\n\n")
+	if found {
+		return newContent, nil
+	}
+	return content, nil
 }

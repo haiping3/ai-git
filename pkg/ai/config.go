@@ -76,7 +76,7 @@ func LoadConfig() (*Config, error) {
 		Anthropic: AnthropicConfig{
 			APIKey:  getEnvWithDefault("ANTHROPIC_API_KEY", ""),
 			Model:   getEnvWithDefault("ANTHROPIC_MODEL", "claude-3-opus-20240229"),
-			BaseURL: getEnvWithDefault("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1/messages"),
+			BaseURL: getEnvWithDefault("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1/messages1"),
 		},
 		DeepSeek: DeepSeekConfig{
 			APIKey:  getEnvWithDefault("DEEPSEEK_API_KEY", ""),
