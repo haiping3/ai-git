@@ -99,6 +99,24 @@ func GenerateCommitMessage(prompt string, config Config) (string, error) {
 	}
 }
 
+// GenerateBranchName generates a branch name using the configured AI model
+func GenerateBranchName(prompt string, config Config) (string, error) {
+	switch config.Type {
+	case ModelOpenAI:
+		return generateWithOpenAI(prompt, config.OpenAI)
+	case ModelOllama:
+		return generateWithOllama(prompt, config.Ollama)
+	case ModelAnthropic:
+		return generateWithAnthropic(prompt, config.Anthropic)
+	case ModelDeepSeek:
+		return generateWithDeepSeek(prompt, config.DeepSeek)
+	case ModelQwen:
+		return generateWithQwen(prompt, config.Qwen)
+	default:
+		return "", fmt.Errorf("unsupported model type: %s", config.Type)
+	}
+}
+
 // generateWithOpenAI generates a commit message using OpenAI
 func generateWithOpenAI(prompt string, config OpenAIConfig) (string, error) {
 	apiKey := config.APIKey
@@ -188,7 +206,7 @@ func generateWithOllama(prompt string, config OllamaConfig) (string, error) {
 		Stream: false, // Explicitly disable streaming
 	}
 
-	jsonData, err := json.Marshal(reqBody)
+	jsonData, err := json.Marshal(&reqBody)
 	if err != nil {
 		return "", err
 	}
