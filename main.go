@@ -79,9 +79,12 @@ func handleCommit(config ai.Config, workDir string, byManual bool) {
 		tempFile.Close()
 
 		// Open the temporary file in the user's default editor
-		editor := os.Getenv("ai-git.editor")
+		editor := os.Getenv("AI_GIT_EDITOR")
 		if editor == "" {
-			editor = "vim" // Default to vim if EDITOR is not set
+			editor = os.Getenv("EDITOR")
+			if editor == "" {
+				editor = "vim" // Default to vim if no editor is set
+			}
 		}
 
 		// Run the editor
@@ -114,13 +117,6 @@ func handleCommit(config ai.Config, workDir string, byManual bool) {
 	if message == "" {
 		fmt.Println("Commit message is empty. Commit cancelled.")
 		return
-	}
-
-	// Add all changes
-	addCmd := exec.Command("git", "add", "-A")
-	addCmd.Dir = changes.WorkDir
-	if err := addCmd.Run(); err != nil {
-		log.Fatalf("Error executing git add: %v", err)
 	}
 
 	// Execute git commit with the edited message

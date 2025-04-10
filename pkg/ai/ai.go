@@ -52,6 +52,40 @@ type AnthropicResponse struct {
 	Content []Message `json:"content"`
 }
 
+// DeepSeekRequest represents the request structure for DeepSeek API
+type DeepSeekRequest struct {
+	Model    string    `json:"model"`
+	Messages []Message `json:"messages"`
+	Stream   bool      `json:"stream"` // Always set to false
+}
+
+// DeepSeekResponse represents the response structure from DeepSeek API
+type DeepSeekResponse struct {
+	Choices []struct {
+		Message Message `json:"message"`
+	} `json:"choices"`
+}
+
+// QwenRequest represents the request structure for Qwen API
+type QwenRequest struct {
+	Model string `json:"model"`
+	Input struct {
+		Messages []Message `json:"messages"`
+	} `json:"input"`
+	Parameters struct {
+		Stream bool `json:"stream"`
+	} `json:"parameters"`
+}
+
+// QwenResponse represents the response structure from Qwen API
+type QwenResponse struct {
+	Output struct {
+		Choices []struct {
+			Message Message `json:"message"`
+		} `json:"choices"`
+	} `json:"output"`
+}
+
 // GenerateCommitMessage generates a commit message using the configured AI model
 func GenerateCommitMessage(prompt string, config Config) (string, error) {
 	switch config.Type {
@@ -61,6 +95,10 @@ func GenerateCommitMessage(prompt string, config Config) (string, error) {
 		return generateWithOllama(prompt, config.Ollama)
 	case ModelAnthropic:
 		return generateWithAnthropic(prompt, config.Anthropic)
+	case ModelDeepSeek:
+		return generateWithDeepSeek(prompt, config.DeepSeek)
+	case ModelQwen:
+		return generateWithQwen(prompt, config.Qwen)
 	default:
 		return "", fmt.Errorf("unsupported model type: %s", config.Type)
 	}
@@ -96,7 +134,12 @@ func generateWithOpenAI(prompt string, config OpenAIConfig) (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonData))
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1/chat/completions"
+	}
+
+	req, err := http.NewRequest("POST", baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
@@ -192,6 +235,11 @@ func generateWithAnthropic(prompt string, config AnthropicConfig) (string, error
 		}
 	}
 
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		baseURL = "https://api.anthropic.com/v1/messages"
+	}
+
 	// Create structure that matches Anthropic API for Claude
 	reqBody := struct {
 		Model     string    `json:"model"`
@@ -219,7 +267,7 @@ func generateWithAnthropic(prompt string, config AnthropicConfig) (string, error
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
@@ -257,4 +305,146 @@ func generateWithAnthropic(prompt string, config AnthropicConfig) (string, error
 	}
 
 	return anthropicResp.Content[0].Text, nil
+}
+
+// generateWithDeepSeek generates a commit message using DeepSeek
+func generateWithDeepSeek(prompt string, config DeepSeekConfig) (string, error) {
+	apiKey := config.APIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("DEEPSEEK_API_KEY")
+		if apiKey == "" {
+			return "", fmt.Errorf("DeepSeek API key is not set")
+		}
+	}
+
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		baseURL = "https://api.deepseek.com/v1/chat/completions"
+	}
+
+	reqBody := DeepSeekRequest{
+		Model: config.Model,
+		Messages: []Message{
+			{
+				Role:    "system",
+				Content: "You are a helpful assistant that generates concise and descriptive git commit messages based on the changes provided.",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+		Stream: false, // Explicitly disable streaming
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", baseURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var deepSeekResp DeepSeekResponse
+	if err := json.Unmarshal(body, &deepSeekResp); err != nil {
+		return "", err
+	}
+
+	if len(deepSeekResp.Choices) == 0 {
+		return "", fmt.Errorf("no response from DeepSeek")
+	}
+
+	return deepSeekResp.Choices[0].Message.Content, nil
+}
+
+// generateWithQwen generates a commit message using Qwen
+func generateWithQwen(prompt string, config QwenConfig) (string, error) {
+	apiKey := config.APIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("QWEN_API_KEY")
+		if apiKey == "" {
+			return "", fmt.Errorf("Qwen API key is not set")
+		}
+	}
+
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		baseURL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+	}
+
+	reqBody := QwenRequest{
+		Model: config.Model,
+		Input: struct {
+			Messages []Message `json:"messages"`
+		}{
+			Messages: []Message{
+				{
+					Role:    "system",
+					Content: "You are a helpful assistant that generates concise and descriptive git commit messages based on the changes provided.",
+				},
+				{
+					Role:    "user",
+					Content: prompt,
+				},
+			},
+		},
+		Parameters: struct {
+			Stream bool `json:"stream"`
+		}{
+			Stream: false,
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", baseURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return "", err
+	}
+
+	if len(qwenResp.Output.Choices) == 0 {
+		return "", fmt.Errorf("no response from Qwen")
+	}
+
+	return qwenResp.Output.Choices[0].Message.Content, nil
 }
