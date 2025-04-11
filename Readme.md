@@ -1,6 +1,68 @@
-## Auto commit by ai with the all changes format.
+## AI-Git: Git CLI with AI Capabilities
 
 ![alt text](docs/image.png)
+
+AI-Git is a Git wrapper that enhances standard Git commands with AI capabilities. It can generate commit messages and branch names based on your changes, making your Git workflow more efficient.
+
+## Features
+
+- **AI-assisted Commit Messages**: Automatically generate meaningful commit messages based on your changes
+- **AI-assisted Branch Names**: Create descriptive branch names based on your changes
+- **Full Git Compatibility**: Works with all standard Git commands, falling back to native Git for unsupported commands
+
+## Installation
+
+```sh
+# Clone the repository
+git clone https://github.com/Codexiaoyi/ai-git.git
+
+# Build and install
+cd ai-git
+go build -o ai-git .
+sudo mv ai-git /usr/local/bin/
+```
+
+## Usage
+
+### Basic Usage
+
+AI-Git works as a drop-in replacement for Git. Simply use `ai-git` instead of `git` for any command:
+
+```sh
+# AI-assisted commit (automatically generates a commit message)
+ai-git commit
+
+# AI-assisted branch creation (automatically generates a branch name)
+ai-git checkout -b
+
+# Use any other Git command (falls back to native Git)
+ai-git status
+ai-git push
+ai-git pull
+ai-git log
+```
+
+### Manual Editing Mode
+
+You can manually edit the AI-generated commit messages and branch names:
+
+```sh
+# Commit with manual editing of the message
+ai-git -m commit
+
+# Checkout with manual editing of the branch name
+ai-git -b checkout
+```
+
+### Custom Repository Directory
+
+You can specify a custom repository directory:
+
+```sh
+# Use AI-Git with a specific repository
+ai-git --dir=/path/to/repo commit
+ai-git --dir=/path/to/repo status
+```
 
 ## Configuration
 
@@ -27,30 +89,27 @@ The application supports multiple AI models, including OpenAI, Ollama, Anthropic
 | `QWEN_MODEL`           | `qwen-max`                                                          | Qwen model to be used               |
 | `QWEN_BASE_URL`        | `https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation` | Qwen API endpoint URL |
 
-### Usage
+### Configuration Examples
 
-Ensure that the required environment variables are set before running the application. You can override the defaults by setting them in your environment.
-
-Example:
+Set up your AI model type and API key:
 ```sh
 export OPENAI_API_KEY="your_api_key_here"
 export AI_TYPE="openai"
 ```
 
-Or using a different model with command line:
-```sh
-ai-git --model="deepseek" commit
-```
+## How It Works
 
-Manual editing mode:
-```sh
-ai-git -m commit
-```
+When you run an AI-Git command:
 
-Set a custom API endpoint:
-```sh
-export OPENAI_BASE_URL="https://your-custom-openai-endpoint.com/v1/chat/completions"
-ai-git commit
-```
+1. If it's a supported command (like `commit` or `checkout -b`), AI-Git uses AI to enhance the command's behavior
+2. If it's an unsupported command, AI-Git passes it through to the native Git command
+
+This means you can use AI-Git for your entire Git workflow without having to switch between different commands.
+
+## License
+
+[License details]
+
+## Acknowledgements
 
 Git-related code is referenced from https://github.com/jatinsandilya/mcp-server-auto-commit. Thanks to jatinsandilya!
