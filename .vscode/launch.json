@@ -11,7 +11,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "./main.go",
-            "args": ["checkout","-b"]
+            "args": ["add","-a"]
         }
     ]
 }

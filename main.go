@@ -16,48 +16,84 @@ var isManual bool
 var newBranch bool
 var workDir string
 
-// commitCmd represents the commit command
-var commitCmd = &cobra.Command{
-	Use:   "commit",
-	Short: "AI-assisted commit, auto-generate commit message.",
-	Long:  "AI-assisted commit, auto-generate commit message.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		config, err := ai.LoadConfig()
-		if err != nil {
-			return fmt.Errorf("Error loading config: %v", err)
-		}
-		handleCommit(*config, workDir, isManual)
-		return nil
-	},
-}
-
-// checkoutCmd represents the checkout -b command
-var checkoutCmd = &cobra.Command{
-	Use:   "checkout",
-	Short: "AI-assisted branch creation, auto-generate branch name.",
-	Long:  "AI-assisted branch creation, auto-generate branch name based on current changes.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		config, err := ai.LoadConfig()
-		if err != nil {
-			return fmt.Errorf("Error loading config: %v", err)
-		}
-		handleCheckout(*config, workDir, newBranch)
-		return nil
-	},
-}
-
 func main() {
 	var rootCmd = &cobra.Command{
-		Use: "ai-git",
+		Use:                "ai-git [command]",
+		Short:              "AI-assisted git commands",
+		Long:               "AI-git is a git wrapper with AI capabilities for certain commands",
+		DisableFlagParsing: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.Help()
+				return
+			}
+
+			// Extract global flags
+			var filteredArgs []string
+			for i := 0; i < len(args); i++ {
+				arg := args[i]
+				if arg == "--dir" && i+1 < len(args) {
+					workDir = args[i+1]
+					i++ // Skip the next arg since it's the value
+				} else if arg == "-m" || arg == "--manual" {
+					isManual = true
+				} else if arg == "-b" || arg == "--newBranch" {
+					newBranch = true
+				} else {
+					filteredArgs = append(filteredArgs, arg)
+				}
+			}
+
+			// No more arguments left after extracting flags
+			if len(filteredArgs) == 0 {
+				cmd.Help()
+				return
+			}
+
+			// Handle specific commands
+			switch filteredArgs[0] {
+			case "commit":
+				config, err := ai.LoadConfig()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+					os.Exit(1)
+				}
+				handleCommit(*config, workDir, isManual)
+				return
+			case "checkout":
+				if len(filteredArgs) > 1 && filteredArgs[1] == "-b" || newBranch {
+					config, err := ai.LoadConfig()
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+						os.Exit(1)
+					}
+					handleCheckout(*config, workDir, true)
+					return
+				}
+			}
+
+			// Fallback to standard git
+			gitCmd := exec.Command("git", filteredArgs...)
+			gitCmd.Stdin = os.Stdin
+			gitCmd.Stdout = os.Stdout
+			gitCmd.Stderr = os.Stderr
+			if workDir != "" {
+				gitCmd.Dir = workDir
+			}
+			if err := gitCmd.Run(); err != nil {
+				if exitError, ok := err.(*exec.ExitError); ok {
+					os.Exit(exitError.ExitCode())
+				}
+				fmt.Fprintf(os.Stderr, "Error executing git command: %v\n", err)
+				os.Exit(1)
+			}
+		},
 	}
-	rootCmd.AddCommand(commitCmd)
-	rootCmd.AddCommand(checkoutCmd)
-	// flags: -m, and --dir
-	commitCmd.Flags().BoolVarP(&isManual, "manual", "m", false, "Commit message to use manually")
-	commitCmd.Flags().StringVar(&workDir, "dir", "", "Git repository directory")
-	checkoutCmd.Flags().BoolVarP(&newBranch, "newBranch", "b", false, "New branch name to use manually")
-	checkoutCmd.Flags().StringVar(&workDir, "dir", "", "Git repository directory")
-	rootCmd.Execute()
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func handleCommit(config ai.Config, workDir string, byManual bool) {
