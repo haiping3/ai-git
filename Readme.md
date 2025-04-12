@@ -54,16 +54,6 @@ ai-git -m commit
 ai-git -b checkout
 ```
 
-### Custom Repository Directory
-
-You can specify a custom repository directory:
-
-```sh
-# Use AI-Git with a specific repository
-ai-git --dir=/path/to/repo commit
-ai-git --dir=/path/to/repo status
-```
-
 ## Configuration
 
 The application supports multiple AI models, including OpenAI, Ollama, Anthropic, DeepSeek, and Qwen. The configuration is managed using environment variables with default values.
