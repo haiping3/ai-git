@@ -29,7 +29,6 @@ func main() {
 		Long:               "AI-git is a git wrapper with AI capabilities for certain commands",
 		DisableFlagParsing: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(args)
 			if len(args) == 0 {
 				cmd.Help()
 				return
@@ -37,17 +36,17 @@ func main() {
 			var newBranch, message string
 			cmd.Flags().StringVarP(&message, "message", "m", "", "Auto generate commit message")
 			cmd.Flags().StringVarP(&newBranch, "newBranch", "b", "", "Auto generate branch name")
-			if err := cmd.Flags().Parse(args); err == nil {
+			err := cmd.Flags().Parse(args)
+			if err == nil || strings.Contains(err.Error(), "flag needs an argument") {
 				// Handle specific commands
 				switch args[0] {
 				case "commit":
-					fmt.Println(cmd.Flags().Changed("message"))
-					if message == "" {
+					if err != nil && strings.Contains(err.Error(), "flag needs an argument") && message == "" {
 						handleCommit(*config)
 						return
 					}
 				case "checkout":
-					if newBranch == "" {
+					if err != nil && strings.Contains(err.Error(), "flag needs an argument") && newBranch == "" {
 						handleCheckout(*config)
 						return
 					}
