@@ -2,7 +2,6 @@ package git
 
 import (
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -22,7 +21,6 @@ type Changes struct {
 	Deleted  []string            `json:"deleted"`
 	Unknown  []string            `json:"unknown"`
 	Details  map[string][]string `json:"details"`
-	WorkDir  string              `json:"workDir"`
 }
 
 // GetDiff gets the git diff information for the current working directory
@@ -46,20 +44,9 @@ func GetStatus() (string, error) {
 }
 
 // GetChanges gets detailed information about changes in the git repository
-// If workDir is empty, the current directory is used
-func GetChanges(workDir string) (*Changes, error) {
-	// Use current directory if workDir is not provided
-	if workDir == "" {
-		var err error
-		workDir, err = filepath.Abs(".")
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func GetChanges() (*Changes, error) {
 	// Get git diff
 	diffCmd := exec.Command("git", "diff", "HEAD")
-	diffCmd.Dir = workDir
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
 		return nil, err
@@ -67,7 +54,6 @@ func GetChanges(workDir string) (*Changes, error) {
 
 	// Get git status
 	statusCmd := exec.Command("git", "status", "--porcelain")
-	statusCmd.Dir = workDir
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return nil, err
@@ -80,7 +66,6 @@ func GetChanges(workDir string) (*Changes, error) {
 		Deleted:  make([]string, 0),
 		Unknown:  make([]string, 0),
 		Details:  make(map[string][]string),
-		WorkDir:  workDir,
 	}
 
 	// Process status output to categorize files

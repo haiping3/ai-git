@@ -12,11 +12,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var isManual bool
-var newBranch bool
-var workDir string
+var (
+	config *ai.Config
+)
 
 func main() {
+	cfg, err := ai.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+	config = cfg
 	var rootCmd = &cobra.Command{
 		Use:                "ai-git [command]",
 		Short:              "AI-assisted git commands",
@@ -27,59 +33,30 @@ func main() {
 				cmd.Help()
 				return
 			}
-
-			// Extract global flags
-			var filteredArgs []string
-			for i := 0; i < len(args); i++ {
-				arg := args[i]
-				if arg == "--dir" && i+1 < len(args) {
-					workDir = args[i+1]
-					i++ // Skip the next arg since it's the value
-				} else if arg == "-m" || arg == "--manual" {
-					isManual = true
-				} else if arg == "-b" || arg == "--newBranch" {
-					newBranch = true
-				} else {
-					filteredArgs = append(filteredArgs, arg)
-				}
-			}
-
-			// No more arguments left after extracting flags
-			if len(filteredArgs) == 0 {
-				cmd.Help()
-				return
-			}
-
-			// Handle specific commands
-			switch filteredArgs[0] {
-			case "commit":
-				config, err := ai.LoadConfig()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-					os.Exit(1)
-				}
-				handleCommit(*config, workDir, isManual)
-				return
-			case "checkout":
-				if len(filteredArgs) > 1 && filteredArgs[1] == "-b" || newBranch {
-					config, err := ai.LoadConfig()
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-						os.Exit(1)
+			var newBranch, message string
+			cmd.Flags().StringVarP(&message, "message", "m", "", "Auto generate commit message")
+			cmd.Flags().StringVarP(&newBranch, "newBranch", "b", "", "Auto generate branch name")
+			if err := cmd.Flags().Parse(args); err == nil {
+				// Handle specific commands
+				switch args[0] {
+				case "commit":
+					if message == "" {
+						handleCommit(*config)
+						return
 					}
-					handleCheckout(*config, workDir, true)
-					return
+				case "checkout":
+					if newBranch == "" {
+						handleCheckout(*config)
+						return
+					}
 				}
 			}
 
 			// Fallback to standard git
-			gitCmd := exec.Command("git", filteredArgs...)
+			gitCmd := exec.Command("git", args...)
 			gitCmd.Stdin = os.Stdin
 			gitCmd.Stdout = os.Stdout
 			gitCmd.Stderr = os.Stderr
-			if workDir != "" {
-				gitCmd.Dir = workDir
-			}
 			if err := gitCmd.Run(); err != nil {
 				if exitError, ok := err.(*exec.ExitError); ok {
 					os.Exit(exitError.ExitCode())
@@ -96,9 +73,9 @@ func main() {
 	}
 }
 
-func handleCommit(config ai.Config, workDir string, byManual bool) {
+func handleCommit(config ai.Config) {
 	// Get detailed git changes information
-	changes, err := git.GetChanges(workDir)
+	changes, err := git.GetChanges()
 	if err != nil {
 		log.Fatalf("Error getting git changes: %v", err)
 	}
@@ -121,52 +98,50 @@ func handleCommit(config ai.Config, workDir string, byManual bool) {
 		log.Fatalf("Error generating commit message: %v", err)
 	}
 
-	if byManual {
-		// Write the AI-generated message to a temporary file for editing
-		tempFile, err := os.CreateTemp("", "ai-git-commit-msg-*.txt")
-		if err != nil {
-			log.Fatalf("Error creating temporary file: %v", err)
-		}
-		defer os.Remove(tempFile.Name()) // Clean up file when done
-
-		// Write AI-generated message to the file
-		fmt.Fprintf(tempFile, "%s\n\n# AI-generated commit message. Save and close the editor to confirm the commit.\n#Or clear the file to cancel the commit.\n# Lines starting with # will be ignored.", message)
-		tempFile.Close()
-
-		// Open the temporary file in the user's default editor
-		editor := os.Getenv("AI_GIT_EDITOR")
-		if editor == "" {
-			editor = os.Getenv("EDITOR")
-			if editor == "" {
-				editor = "vim" // Default to vim if no editor is set
-			}
-		}
-
-		// Run the editor
-		editCmd := exec.Command(editor, tempFile.Name())
-		editCmd.Stdin = os.Stdin
-		editCmd.Stdout = os.Stdout
-		editCmd.Stderr = os.Stderr
-		if err := editCmd.Run(); err != nil {
-			log.Fatalf("Error opening editor: %v", err)
-		}
-
-		// Read the edited message
-		editedMessageBytes, err := os.ReadFile(tempFile.Name())
-		if err != nil {
-			log.Fatalf("Error reading edited message: %v", err)
-		}
-
-		// Process the edited message - remove comment lines
-		lines := strings.Split(string(editedMessageBytes), "\n")
-		var finalLines []string
-		for _, line := range lines {
-			if !strings.HasPrefix(strings.TrimSpace(line), "#") {
-				finalLines = append(finalLines, line)
-			}
-		}
-		message = strings.TrimSpace(strings.Join(finalLines, "\n"))
+	// Write the AI-generated message to a temporary file for editing
+	tempFile, err := os.CreateTemp("", "ai-git-commit-msg-*.txt")
+	if err != nil {
+		log.Fatalf("Error creating temporary file: %v", err)
 	}
+	defer os.Remove(tempFile.Name()) // Clean up file when done
+
+	// Write AI-generated message to the file
+	fmt.Fprintf(tempFile, "%s\n\n# AI-generated commit message. Save and close the editor to confirm the commit.\n#Or clear the file to cancel the commit.\n# Lines starting with # will be ignored.", message)
+	tempFile.Close()
+
+	// Open the temporary file in the user's default editor
+	editor := os.Getenv("AI_GIT_EDITOR")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vim" // Default to vim if no editor is set
+		}
+	}
+
+	// Run the editor
+	editCmd := exec.Command(editor, tempFile.Name())
+	editCmd.Stdin = os.Stdin
+	editCmd.Stdout = os.Stdout
+	editCmd.Stderr = os.Stderr
+	if err := editCmd.Run(); err != nil {
+		log.Fatalf("Error opening editor: %v", err)
+	}
+
+	// Read the edited message
+	editedMessageBytes, err := os.ReadFile(tempFile.Name())
+	if err != nil {
+		log.Fatalf("Error reading edited message: %v", err)
+	}
+
+	// Process the edited message - remove comment lines
+	lines := strings.Split(string(editedMessageBytes), "\n")
+	var finalLines []string
+	for _, line := range lines {
+		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			finalLines = append(finalLines, line)
+		}
+	}
+	message = strings.TrimSpace(strings.Join(finalLines, "\n"))
 
 	// If the message is empty, cancel the commit
 	if message == "" {
@@ -176,7 +151,6 @@ func handleCommit(config ai.Config, workDir string, byManual bool) {
 
 	// Execute git commit with the edited message
 	commitCmd := exec.Command("git", "commit", "-m", message)
-	commitCmd.Dir = changes.WorkDir
 	commitCmd.Stdout = os.Stdout
 	commitCmd.Stderr = os.Stderr
 
@@ -185,12 +159,9 @@ func handleCommit(config ai.Config, workDir string, byManual bool) {
 	}
 }
 
-func handleCheckout(config ai.Config, workDir string, newName bool) {
-	if !newBranch {
-		return
-	}
+func handleCheckout(config ai.Config) {
 	// Get detailed git changes information
-	changes, err := git.GetChanges(workDir)
+	changes, err := git.GetChanges()
 	if err != nil {
 		log.Fatalf("Error getting git changes: %v", err)
 	}
@@ -265,7 +236,6 @@ func handleCheckout(config ai.Config, workDir string, newName bool) {
 
 	// Execute git checkout -b with the branch name
 	checkoutCmd := exec.Command("git", "checkout", "-b", branchName)
-	checkoutCmd.Dir = changes.WorkDir
 	checkoutCmd.Stdout = os.Stdout
 	checkoutCmd.Stderr = os.Stderr
 
