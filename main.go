@@ -29,6 +29,7 @@ func main() {
 		Long:               "AI-git is a git wrapper with AI capabilities for certain commands",
 		DisableFlagParsing: true,
 		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(args)
 			if len(args) == 0 {
 				cmd.Help()
 				return
@@ -40,6 +41,7 @@ func main() {
 				// Handle specific commands
 				switch args[0] {
 				case "commit":
+					fmt.Println(cmd.Flags().Changed("message"))
 					if message == "" {
 						handleCommit(*config)
 						return
@@ -51,7 +53,6 @@ func main() {
 					}
 				}
 			}
-
 			// Fallback to standard git
 			gitCmd := exec.Command("git", args...)
 			gitCmd.Stdin = os.Stdin
