@@ -33,19 +33,24 @@ func main() {
 				cmd.Help()
 				return
 			}
-			var newBranch, message string
-			cmd.Flags().StringVarP(&message, "message", "m", "", "Auto generate commit message")
-			cmd.Flags().StringVarP(&newBranch, "newBranch", "b", "", "Auto generate branch name")
-			err := cmd.Flags().Parse(args)
+
 			if err == nil || strings.Contains(err.Error(), "flag needs an argument") {
 				// Handle specific commands
 				switch args[0] {
 				case "commit":
+					var message string
+					var all bool
+					cmd.Flags().StringVarP(&message, "message", "m", "", "Auto generate commit message")
+					cmd.Flags().BoolVarP(&all, "all", "a", false, "Auto add all to stage")
+					err := cmd.Flags().Parse(args)
 					if err != nil && strings.Contains(err.Error(), "flag needs an argument") && message == "" {
-						handleCommit(*config)
+						handleCommit(*config, all)
 						return
 					}
 				case "checkout":
+					var newBranch string
+					cmd.Flags().StringVarP(&newBranch, "newBranch", "b", "", "Auto generate branch name")
+					err := cmd.Flags().Parse(args)
 					if err != nil && strings.Contains(err.Error(), "flag needs an argument") && newBranch == "" {
 						handleCheckout(*config)
 						return
@@ -73,7 +78,7 @@ func main() {
 	}
 }
 
-func handleCommit(config ai.Config) {
+func handleCommit(config ai.Config, addAll bool) {
 	// Get detailed git changes information
 	changes, err := git.GetChanges()
 	if err != nil {
@@ -148,9 +153,12 @@ func handleCommit(config ai.Config) {
 		fmt.Println("Commit message is empty. Commit cancelled.")
 		return
 	}
-
+	arg := "-m"
+	if addAll {
+		arg = "-am"
+	}
 	// Execute git commit with the edited message
-	commitCmd := exec.Command("git", "commit", "-m", message)
+	commitCmd := exec.Command("git", "commit", arg, message)
 	commitCmd.Stdout = os.Stdout
 	commitCmd.Stderr = os.Stderr
 
